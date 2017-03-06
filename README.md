@@ -13,10 +13,12 @@ THis is a small demo webservice in Ruby using Sinatra Framwork and OpenSSL to cr
 	+ Now both client and server have `key` and `iv`, and use them to encrypt data in each request/response after that.
 
 Pros:
+
 	+ Speed is fast (maybe the fastest)
 	+ Very easy to implement
 
 Cons:
+
 	+ Pure AES key is transmitted during connection
 
 - With DH, the scenario is:
@@ -29,9 +31,11 @@ Cons:
 	+ Both client and server use first 16 bytes of shared secret `s` as AES Key, and the next 16 bytes for AES IV and use them to encrypt data in each request/response after that.`
 
 Pros:
+
 	+ AES Key and IV are not transferred during connection, they're calculated on client and server.
 
 Cons:
+
 	+ Slow speed (when DH Key Size is big)
 	+ Can't use RSA as an overall layer (in this case, due to the large amount of data being sent)
 	+ Bit harder to implement
@@ -47,11 +51,13 @@ Cons:
 	+ Both client and server use first 16 bytes of shared secret `s` as AES Key, and the next 16 bytes for AES IV and use them to encrypt data in each request/response after that.`
 
 Pros:
+
 	+ Slightly fast
 	+ AES Key and IV are not transferred during connection, they're calculated on client and server.
 	+ Can use RSA as an overall layer to make it more secure (in this case)
 
 Cons:
+
 	+ Bit harder to implement
 
 ##How to use##

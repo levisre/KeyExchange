@@ -33,12 +33,13 @@ def craftBody(data)
 	JSON.dump(dataChunk).chomp
 end
 
-def httpConn(link,body)
+def httpConn(link,body,reqType='text/json')
 	uri = URI.parse(link)
-	header = {'Content-Type': 'text/json'}
+	#header = {'Content-Type': 'text/json'}
 	http = Net::HTTP.new(uri.host, uri.port)
-	request = Net::HTTP::Post.new(uri.request_uri, header)
+	request = Net::HTTP::Post.new(uri.request_uri)
 	request.body = body
+	request['Content-Type'] = reqType
 	return http.request(request)
 end
 
@@ -50,7 +51,7 @@ end
 # Call yahoo api from server
 def yahoo(msg)
 	body = encryptAES(msg)
-	response = httpConn($host + '/yahoo',body)
+	response = httpConn($host + '/yahoo',body, 'application/binary')
 	puts decryptAES(response.body)
 end
 

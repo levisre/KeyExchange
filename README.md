@@ -2,7 +2,7 @@
 
 ##Description##
 
-This is a small demo webservice in Ruby using Sinatra Framwork and OpenSSL to create a (not so) secure key exchange between client and server using three methods: RSA, Diffie Hellman (DH) and Elliptic Curve Diffie Hellman (ECDH).
+This is a small demo webservice in Ruby using Sinatra Framwork and OpenSSL to create a (not so) secure key exchange between client and server using three methods: RSA, Diffie Hellman Ephemeral (DHE) and Elliptic Curve Diffie Hellman Ephemeral (ECDHE).
 
 - With RSA, the scenario is:
 
@@ -19,9 +19,9 @@ Pros:
 
 Cons:
 
-	+ Pure AES key is transferred during connection
+	+ Pure AES key and IV are transferred during connection. They're just protected by RSA
 
-- With DH, the scenario is:
+- With DHE, the scenario is:
 
 	+ Client creates DH instance, which contains base `G`, modulus `p`, its own private `a` and public `A`
 	+ Client sends `G`, `p`, `A` to server.
@@ -36,15 +36,39 @@ Pros:
 
 Cons:
 
-	+ Slow speed (when DH Key Size is big)
+	+ Slow speed (when DH Key Size is big, it needs to generate values from the very beginning of key exchange process whenever client make a call to this api, this maybe resolved using static DH params, see `gen_dhparam.rb` to know how to generate DH param in Ruby)
 	+ Can't use RSA as an overall layer (in this case, due to the large amount of data being sent)
 	+ Bit harder to implement
 
-- With ECDH, the scenario is:
+**NOTE**: To use static DH Parameters, both client and server have to agree to use the same fixed DH param, then modify the code.
 
-	+ Client creates ECDH instance, which generates a keypair `cpub` and `cpriv`
+File `server.rb`, from line 79 to line 82, change them to:
+
+```ruby
+# file  dhparam.pem is pre-generated and pre-shared on both client and server
+serverDH = OpenSSL::PKey::DH.new File.read("dhparam.pem")
+```
+
+File ``client.rb`, from line 102 to line 111, change them to:
+
+```ruby
+# file  dhparam.pem is pre-generated and pre-shared on both client and server
+clientDH = OpenSSL::PKey::DH.new File.read("dhparam.pem")
+# Must be used to generate public and private keypair before it can be used.
+clientDH.generate_key!
+# Since base G and modulus p is pre-shared, so they needn't to be sent during key exchange
+# Just need to generate new A and a
+dhStruct = {
+	"A" => clientDH.pub_key.to_s(16)
+}
+
+```
+
+- With ECDHE, the scenario is:
+
+	+ Client creates ECDH instance, which generates a keypair `cpub` and `cpriv` using `prime256v1` group
 	+ Client sends `cpub` to server
-	+ Server creates ECDH instance, which generates a keypair, `spub` and `spriv`
+	+ Server creates ECDH instance, which generates a keypair, `spub` and `spriv` using `prime256v1` group
 	+ Server computes shared secret `s` by using client' `cpub`
 	+ Server sends `spub` to client
 	+ Client computes shared secret `s` by using server' `spub`
@@ -52,7 +76,7 @@ Cons:
 
 Pros:
 
-	+ Slightly fast
+	+ Slightly fast and more secure
 	+ AES Key and IV are not transferred during connection, they're calculated on client and server.
 	+ Can use RSA as an overall layer to make it more secure (in this case)
 
@@ -99,3 +123,7 @@ $ ruby client.rb
 - `Gemfile`: Ruby gems list to use with `bundle`
 
 - `README.md`: What you're reading
+
+- `gen_dhparam.rb`: Generate DH params
+
+- `network_sample.pcap`: Sample network traffic captured

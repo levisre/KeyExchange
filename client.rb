@@ -5,8 +5,10 @@ require 'base64'
 require 'openssl'
 require 'securerandom'
 
-$gKey = ''
-$gIV = ''
+# Global AES Key used for Encryption/Decryption
+$gKey = nil
+# Global AES IV used for Encryption/Decryption
+$gIV = nil
 $host = 'http://localhost:4567'
 def encryptAES(data)
 	cipher = OpenSSL::Cipher::AES128.new(:CBC)
@@ -92,10 +94,10 @@ def sendRSA
 	runYahoo
 end
 
-#####################################
-# Key Exchange using Diffie Hellman	#
-#####################################
-def sendDH
+###############################################
+# Key Exchange using Diffie Hellman Epheemral #
+###############################################
+def sendDHE
 	# Using Diffie Hellman with 256 bits size. According to security standards, the key size must be
 	# at least 1024 bits. In this case i only use 256 bits to optimize performance.
 	# Key size should not be smaller than 256 bits due to the use of shared secret (32 bytes) in this case
@@ -111,7 +113,7 @@ def sendDH
 	}
 	#Create Request Body and send to server
 	body = craftBody(JSON.dump(dhStruct).chomp)
-	response = httpConn($host + '/dh',body)
+	response = httpConn($host + '/dhe',body)
 	data = parseResponse(response)
 	key = JSON.parse(data)
 	# Get Server Public B and compute Shared Secret
@@ -127,10 +129,10 @@ def sendDH
 	runYahoo
 end
 
-##########################################3##########
-# Key Exchange using Ellkiptic Curve Diffie Hellman #
-#####################################################
-def sendECDH
+##########################################3####################
+# Key Exchange using Ellkiptic Curve Diffie Hellman Ephemeral #
+###############################################################
+def sendECDHE
 	groupName = 'prime256v1'
 	clientEC = OpenSSL::PKey::EC.generate(groupName)
 	cPub = clientEC.public_key.to_bn
@@ -145,7 +147,7 @@ def sendECDH
 	#Create Request Body and send to server
 	body= craftBody(dataChunk)
 	#body = craftBody(JSON.dump(ecStruct).chomp)
-	response = httpConn($host + '/ecdh',body)
+	response = httpConn($host + '/ecdhe',body)
 	data = parseResponse(response)
 	key = JSON.parse(data)
 	# Get Server Public and compute 
@@ -166,5 +168,5 @@ def sendECDH
 end
 
 sendRSA
-sendDH
-sendECDH
+sendDHE
+sendECDHE

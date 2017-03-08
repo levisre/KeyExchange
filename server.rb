@@ -4,8 +4,10 @@ require 'openssl'
 require 'base64'
 
 set :show_exceptions, false
-$gKey = ''
-$gIV = ''
+# Global AES Key used for Encryption/Decryption
+$gKey = nil
+# Global AES IV used for Encryption/Decryption
+$gIV = nil
 
 def decryptRSA(data)
 	privateKey = OpenSSL::PKey::RSA.new File.read("private_key")
@@ -69,10 +71,10 @@ post '/rsa' do
 	craftResponse(data)
 end
 
-#####################################
-# Key Exchange using Diffie Hellman	#
-#####################################
-post '/dh' do
+###############################################
+# Key Exchange using Diffie Hellman Ephemeral #
+###############################################
+post '/dhe' do
 	content_type:json
 	reqData = parseRequest(request)
 	data = JSON.parse(reqData)
@@ -88,7 +90,7 @@ post '/dh' do
 	#Next 16 bytes of shared secret will be used as Initial Vector
 	$gIV = sharedSecret[16..31]
 	#Server return Public B and a test message encrypted by AES with key and IV created by shared Secret
-	new_msg = encryptAES("DH Key Exchange Success!")
+	new_msg = encryptAES("DHE Key Exchange Success!")
 	data = {
 		"B" => serverDH.pub_key.to_s(16), 
 		"text" => Base64.encode64(new_msg).chomp
@@ -96,11 +98,11 @@ post '/dh' do
 	craftResponse(JSON.dump(data).chomp)
 end
 
-##########################################3##########
-# Key Exchange using Ellkiptic Curve Diffie Hellman #
-#####################################################
+##########################################3####################
+# Key Exchange using Ellkiptic Curve Diffie Hellman Ephemeral #
+###############################################################
 
-post '/ecdh' do
+post '/ecdhe' do
 	content_type:json
 	reqData = parseRequest(request)
 	groupName = "prime256v1"
@@ -120,7 +122,7 @@ post '/ecdh' do
 	#Next 16 bytes of shared secret will be used as Initial Vector	
 	$gIV = shared[16..31]
 	# Server Return Server Public and a test message encrypted by AES with key and IV created by shared Secret
-	new_msg = encryptAES("ECDH Key Exchange Success!")
+	new_msg = encryptAES("ECDHE Key Exchange Success!")
 	data = {
 		'spub' => serverEC.public_key.to_bn.to_s(16),
 		"text" => Base64.encode64(new_msg)

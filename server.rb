@@ -2,12 +2,12 @@ require 'sinatra'
 require 'json'
 require 'openssl'
 require 'base64'
+require 'securerandom'
 
 set :show_exceptions, false
 # Global AES Key used for Encryption/Decryption
 $gKey = nil
-# Global AES IV used for Encryption/Decryption
-$gIV = nil
+
 
 error 500 do
 	'0mG, Th15 15 $h!t! W@tCh 0uT, dUd3...'	
@@ -22,23 +22,26 @@ def encryptAES(msg)
 	cipher = OpenSSL::Cipher::AES128.new(:GCM)
 	cipher.encrypt
 	cipher.key = $gKey
-	cipher.iv = $gIV
+	# randomize ID, will be sent alongside with encrypted data
+	iv = cipher.random_iv
 	# In this case, auth_data is unused, but required by GCM Mode
 	cipher.auth_data = ''
 	encrypted = cipher.update(msg) + cipher.final
-	# Data being sent contains encrypted data and auth Tag
-	return cipher.auth_tag + encrypted
+	# Data being sent = auth_tag(16 bytes) + iv(12 bytes) + encrypteddata
+	return cipher.auth_tag + iv + encrypted
 end
 
 def decryptAES(msg)
-	# Get Encrypted data
-	data = msg[16..msg.length]
-	# Get Auth tag
+	# Get Auth tag = First 16 bytes
 	tag = msg[0..15]
+	# Get init vector = Next 12 bytes
+	iv = msg[16..27]
+	# Get Encrypted data = the rest
+	data = msg[28..msg.length]
 	cipher = OpenSSL::Cipher::AES128.new(:GCM)
 	cipher.decrypt
 	cipher.key = $gKey
-	cipher.iv = $gIV
+	cipher.iv = iv
 	cipher.auth_tag = tag
 	# In this case, auth_data is unused, but required by GCM Mode
 	cipher.auth_data = ''
@@ -80,7 +83,7 @@ post '/rsa' do
 	begin
 		msgStruct = JSON.parse(decryptRSA(reqData))
 		$gKey = Base64.decode64(msgStruct['key'])
-		$gIV = Base64.decode64(msgStruct['iv'])
+		#$gIV = Base64.decode64(msgStruct['iv'])
 		# Try to decrypt an encrypted Message sent by Client to see the AES Key works or not
 		secmsg = Base64.decode64(msgStruct['msg'])
 		msg = decryptAES(secmsg)
@@ -88,8 +91,8 @@ post '/rsa' do
 		retmsg = 'You sent : ' + msg
 		data = encryptAES(retmsg)
 		craftResponse(data)
-	#rescue
-		#error 500
+	rescue
+		error 500
 	end
 end
 
@@ -110,10 +113,6 @@ post '/dhe' do
 		sharedSecret = serverDH.compute_key(data['A'].to_i(16))
 		#First 16 bytes of shared Secret will be used as Encryption Key
 		$gKey = sharedSecret[0..15]
-		#Next 16 bytes of shared secret will be used as Initial Vector
-		#$gIV = sharedSecret[16..31]
-		#UPDATE: To be honest, AES128-GCM mode requires 12 bytes of IV, so this must be changed
-		$gIV = sharedSecret[16..27]
 		#Server return Public B and a test message encrypted by AES with key and IV created by shared Secret
 		new_msg = encryptAES("DHE Key Exchange Success!")
 		data = {
@@ -148,10 +147,6 @@ post '/ecdhe' do
 		shared = serverEC.dh_compute_key(cPubPoint)
 		#First 16 bytes of shared Secret will be used as Encryption Key
 		$gKey = shared[0..15]
-		#Next 16 bytes of shared secret will be used as Initial Vector	
-		#$gIV = shared[16..31]
-		#UPDATE: To be honest, AES128-GCM mode requires 12 bytes of IV, so this must be changed
-		$gIV = shared[16..27]
 		# Server Return Server Public and a test message encrypted by AES with key and IV created by shared Secret
 		new_msg = encryptAES("ECDHE Key Exchange Success!")
 		data = {

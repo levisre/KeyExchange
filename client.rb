@@ -7,30 +7,31 @@ require 'securerandom'
 
 # Global AES Key used for Encryption/Decryption
 $gKey = nil
-# Global AES IV used for Encryption/Decryption
-$gIV = nil
 $host = 'http://localhost:4567'
 def encryptAES(data)
 	cipher = OpenSSL::Cipher::AES128.new(:GCM)
 	cipher.encrypt
 	cipher.key = $gKey
-	cipher.iv = $gIV
+	# randomize IV, will be sent alongside with encrypted data
+	iv = cipher.random_iv
 	# In this case, auth_data is unused, but required by GCM Mode
 	cipher.auth_data = ""
 	encrypted = cipher.update(data) + cipher.final
-	# Data being sent contains encrypted data and auth Tag
-	return cipher.auth_tag + encrypted
+	# Data being sent = auth_tag(16 bytes) + iv(12 bytes) + encrypteddata
+	return cipher.auth_tag + iv + encrypted
 end
 
 def decryptAES(msg)
-	# Get Encrypted data
-	data = msg[16..msg.length]
-	# Get Auth tag
+	# Get Auth tag = First 16 bytes
 	tag = msg[0..15]
+	# Get init vector = Next 12 bytes
+	iv = msg[16..27]
+	# Get Encrypted data = the rest
+	data = msg[28..msg.length]
 	cipher = OpenSSL::Cipher::AES128.new(:GCM)
 	cipher.decrypt
 	cipher.key = $gKey
-	cipher.iv = $gIV
+	cipher.iv = iv
 	# In this case, auth_data is unused, but required by GCM Mode
 	cipher.auth_data = ""
 	cipher.auth_tag = tag
@@ -46,7 +47,6 @@ end
 
 def httpConn(link,body,reqType='text/json')
 	uri = URI.parse(link)
-	#header = {'Content-Type': 'text/json'}
 	http = Net::HTTP.new(uri.host, uri.port)
 	request = Net::HTTP::Post.new(uri.request_uri)
 	request.body = body
@@ -77,12 +77,8 @@ end
 # Key Exchange using RSA #
 ##########################
 def sendRSA
-	# Create Random AES Key and Random Init Vector
+	# Create Random AES Key
 	$gKey = SecureRandom.random_bytes(16)
-	#UPDATE: To be honest, AES128-GCM mode requires 12 bytes of IV, so this must be changed
-	#$gIV = SecureRandom.random_bytes(16)
-	$gIV = SecureRandom.random_bytes(12)
-	aesIV = Base64.encode64($gIV).chomp
 	aesKey = Base64.encode64($gKey).chomp
 	data = "This is the super Secret Message"
 	msg = Base64.encode64(encryptAES(data)).chomp
@@ -92,7 +88,6 @@ def sendRSA
 	# msg: Test Message send to Server
 	aesInfo = {
 		"key" => aesKey,
-		"iv" => aesIV,
 		"msg"=> msg
 	}
 	# Encrypt Request Data using RSA Public Key
@@ -135,10 +130,6 @@ def sendDHE
 	shared = clientDH.compute_key(serverPub.to_i(16))
 	# First 16 bytes of shared Secret will be used as Encryption Key. See server.rb
 	$gKey = shared[0..15]
-	# Next 16 bytes of shared secret will be used as Initial Vector. See server.rb
-	#$gIV = shared[16..31]
-	#UPDATE: To be honest, AES128-GCM mode requires 12 bytes of IV, so this must be changed
-	$gIV = shared[16..27]
 	# Try to decrypt the encrypted Message sent from Server
 	puts decryptAES(Base64.decode64(key['text']))
 	# Run the test
@@ -177,10 +168,6 @@ def sendECDHE
 	shared = clientEC.dh_compute_key(sPubPoint)
 	#First 16 bytes of shared Secret will be used as Encryption Key
 	$gKey = shared[0..15]
-	#Next 16 bytes of shared secret will be used as Initial Vector	
-	#$gIV = shared[16..31]
-	#UPDATE: To be honest, AES128-GCM mode requires 12 bytes of IV, so this must be changed
-	$gIV = shared[16..27]
 	puts decryptAES(Base64.decode64(key['text']))
 	runYahoo
 end

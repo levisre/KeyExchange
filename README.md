@@ -9,8 +9,8 @@ This is a small demo webservice in Ruby using Sinatra Framwork and OpenSSL to cr
 	+ Client chooses a random AES key and random Init Vector
 	+ Client encrypts `key` and `iv` using pre-defined RSA public key.
 	+ Client sends encrypted data to server.
-	+ Server receives encrypted data,  then uses private key located on server to decrypt to get `key` and `iv`.
-	+ Now both client and server have `key` and `iv`, and use them to encrypt data in each request/response after that.
+	+ Server receives encrypted data,  then uses private key located on server to decrypt to get `key`
+	+ Now both client and server have `key`, and use it to encrypt data in each request/response after that.
 
 Pros:
 
@@ -19,7 +19,7 @@ Pros:
 
 Cons:
 
-	+ Pure AES key and IV are transferred during connection. They're just protected by RSA
+	+ Pure AES key is transferred during connection. They're just protected by RSA
 
 - With DHE, the scenario is:
 
@@ -28,11 +28,11 @@ Cons:
 	+ Server creates DH instance from `G` and `p` sent by client, calculates its own private `b` and public `B`, and calculates Shared secret `s` by using `A` sent by client.
 	+ Server sends `B` back to client
 	+ Client uses `B` to calculate Shared secret `s`
-	+ Both client and server use first 16 bytes of shared secret `s` as AES Key, and the next 16 bytes for AES IV and use them to encrypt data in each request/response after that.`
+	+ Both client and server use first 16 bytes of shared secret `s` as AES Key, and use it to encrypt data in each request/response after that.`
 
 Pros:
 
-	+ AES Key and IV are not transferred during connection, they're calculated on client and server.
+	+ AES Key is not transferred during connection, they're calculated on client and server.
 
 Cons:
 
@@ -72,12 +72,12 @@ dhStruct = {
 	+ Server computes shared secret `s` by using client' `cpub`
 	+ Server sends `spub` to client
 	+ Client computes shared secret `s` by using server' `spub`
-	+ Both client and server use first 16 bytes of shared secret `s` as AES Key, and the next 16 bytes for AES IV and use them to encrypt data in each request/response after that.`
+	+ Both client and server use first 16 bytes of shared secret `s` as AES Key, and use it to encrypt data in each request/response after that.`
 
 Pros:
 
 	+ Slightly fast and more secure
-	+ AES Key and IV are not transferred during connection, they're calculated on client and server.
+	+ AES Key are not transferred during connection, they're calculated on client and server.
 	+ Can use RSA as an overall layer to make it more secure (in this case)
 
 Cons:

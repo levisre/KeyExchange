@@ -11,18 +11,29 @@ $gKey = nil
 $gIV = nil
 $host = 'http://localhost:4567'
 def encryptAES(data)
-	cipher = OpenSSL::Cipher::AES128.new(:CBC)
+	cipher = OpenSSL::Cipher::AES128.new(:GCM)
 	cipher.encrypt
 	cipher.key = $gKey
 	cipher.iv = $gIV
-	return cipher.update(data) + cipher.final
+	# In this case, auth_data is unused, but required by GCM Mode
+	cipher.auth_data = ""
+	encrypted = cipher.update(data) + cipher.final
+	# Data being sent contains encrypted data and auth Tag
+	return cipher.auth_tag + encrypted
 end
 
-def decryptAES(data)
-	cipher = OpenSSL::Cipher::AES128.new(:CBC)
+def decryptAES(msg)
+	# Get Encrypted data
+	data = msg[16..msg.length]
+	# Get Auth tag
+	tag = msg[0..15]
+	cipher = OpenSSL::Cipher::AES128.new(:GCM)
 	cipher.decrypt
 	cipher.key = $gKey
 	cipher.iv = $gIV
+	# In this case, auth_data is unused, but required by GCM Mode
+	cipher.auth_data = ""
+	cipher.auth_tag = tag
 	return cipher.update(data) + cipher.final
 end
 
@@ -68,7 +79,9 @@ end
 def sendRSA
 	# Create Random AES Key and Random Init Vector
 	$gKey = SecureRandom.random_bytes(16)
-	$gIV = SecureRandom.random_bytes(16)
+	#UPDATE: To be honest, AES128-GCM mode requires 12 bytes of IV, so this must be changed
+	#$gIV = SecureRandom.random_bytes(16)
+	$gIV = SecureRandom.random_bytes(12)
 	aesIV = Base64.encode64($gIV).chomp
 	aesKey = Base64.encode64($gKey).chomp
 	data = "This is the super Secret Message"
@@ -123,7 +136,9 @@ def sendDHE
 	# First 16 bytes of shared Secret will be used as Encryption Key. See server.rb
 	$gKey = shared[0..15]
 	# Next 16 bytes of shared secret will be used as Initial Vector. See server.rb
-	$gIV = shared[16..31]
+	#$gIV = shared[16..31]
+	#UPDATE: To be honest, AES128-GCM mode requires 12 bytes of IV, so this must be changed
+	$gIV = shared[16..27]
 	# Try to decrypt the encrypted Message sent from Server
 	puts decryptAES(Base64.decode64(key['text']))
 	# Run the test
@@ -163,7 +178,9 @@ def sendECDHE
 	#First 16 bytes of shared Secret will be used as Encryption Key
 	$gKey = shared[0..15]
 	#Next 16 bytes of shared secret will be used as Initial Vector	
-	$gIV = shared[16..31]
+	#$gIV = shared[16..31]
+	#UPDATE: To be honest, AES128-GCM mode requires 12 bytes of IV, so this must be changed
+	$gIV = shared[16..27]
 	puts decryptAES(Base64.decode64(key['text']))
 	runYahoo
 end

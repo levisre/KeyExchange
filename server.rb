@@ -19,19 +19,30 @@ def decryptRSA(data)
 end
 
 def encryptAES(msg)
-	cipher = OpenSSL::Cipher::AES128.new(:CBC)
+	cipher = OpenSSL::Cipher::AES128.new(:GCM)
 	cipher.encrypt
 	cipher.key = $gKey
 	cipher.iv = $gIV
-	return cipher.update(msg) + cipher.final
+	# In this case, auth_data is unused, but required by GCM Mode
+	cipher.auth_data = ''
+	encrypted = cipher.update(msg) + cipher.final
+	# Data being sent contains encrypted data and auth Tag
+	return cipher.auth_tag + encrypted
 end
 
 def decryptAES(msg)
-	cipher = OpenSSL::Cipher::AES128.new(:CBC)
+	# Get Encrypted data
+	data = msg[16..msg.length]
+	# Get Auth tag
+	tag = msg[0..15]
+	cipher = OpenSSL::Cipher::AES128.new(:GCM)
 	cipher.decrypt
 	cipher.key = $gKey
 	cipher.iv = $gIV
-	return cipher.update(msg) + cipher.final
+	cipher.auth_tag = tag
+	# In this case, auth_data is unused, but required by GCM Mode
+	cipher.auth_data = ''
+	return cipher.update(data) + cipher.final
 end
 
 def parseRequest(request)
@@ -77,8 +88,8 @@ post '/rsa' do
 		retmsg = 'You sent : ' + msg
 		data = encryptAES(retmsg)
 		craftResponse(data)
-	rescue
-		error 500
+	#rescue
+		#error 500
 	end
 end
 
@@ -100,7 +111,9 @@ post '/dhe' do
 		#First 16 bytes of shared Secret will be used as Encryption Key
 		$gKey = sharedSecret[0..15]
 		#Next 16 bytes of shared secret will be used as Initial Vector
-		$gIV = sharedSecret[16..31]
+		#$gIV = sharedSecret[16..31]
+		#UPDATE: To be honest, AES128-GCM mode requires 12 bytes of IV, so this must be changed
+		$gIV = sharedSecret[16..27]
 		#Server return Public B and a test message encrypted by AES with key and IV created by shared Secret
 		new_msg = encryptAES("DHE Key Exchange Success!")
 		data = {
@@ -136,7 +149,9 @@ post '/ecdhe' do
 		#First 16 bytes of shared Secret will be used as Encryption Key
 		$gKey = shared[0..15]
 		#Next 16 bytes of shared secret will be used as Initial Vector	
-		$gIV = shared[16..31]
+		#$gIV = shared[16..31]
+		#UPDATE: To be honest, AES128-GCM mode requires 12 bytes of IV, so this must be changed
+		$gIV = shared[16..27]
 		# Server Return Server Public and a test message encrypted by AES with key and IV created by shared Secret
 		new_msg = encryptAES("ECDHE Key Exchange Success!")
 		data = {

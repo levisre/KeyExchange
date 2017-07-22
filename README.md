@@ -1,6 +1,8 @@
-#Simple Key Exchange web service#
+Simple Key Exchange web service
+===============================
 
-##Description##
+Description
+-----------
 
 This is a small demo webservice in Ruby using Sinatra Framwork and OpenSSL to create a (not so) secure key exchange between client and server using three methods: RSA, Diffie Hellman Ephemeral (DHE) and Elliptic Curve Diffie Hellman Ephemeral (ECDHE).
 
@@ -84,7 +86,8 @@ Cons:
 
 	+ Bit harder to implement
 
-##How to use##
+How to use
+----------
 
 NOTE: Requires `ruby >= 2.3.0`, as requested by `openssl` gems
 
@@ -108,7 +111,8 @@ Test with client:
 $ ruby client.rb
 ```
 
-##File Contents##
+File Contents
+-------------
 
 - `server.rb`: Main web service, exposing APIs for clients to call
 
